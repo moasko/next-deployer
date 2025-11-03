@@ -1,7 +1,7 @@
 {
   "name": "universal-nextjs-deploy",
   "version": "1.2.0",
-  "description": "Universal deployment system for Next.js applications with CI/CD support",
+  "description": "A comprehensive deployment solution for Next.js applications that automatically configures your VPS with all necessary tools and services including Node.js, PM2, Nginx, and database clients. Supports SQLite, MySQL, PostgreSQL with automated CI/CD pipelines.",
   "main": "deploy.js",
   "scripts": {
     "deploy": "node deploy.js",
