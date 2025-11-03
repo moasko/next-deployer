@@ -27,6 +27,10 @@ Pull requests are the best way to propose changes to the codebase. We actively w
 
 In short, when you submit code changes, your submissions are understood to be under the same [MIT License](http://choosealicense.com/licenses/mit/) that covers the project. Feel free to contact the maintainers if that's a concern.
 
+## Code of Conduct
+
+Please note that this project is released with a [Contributor Code of Conduct](CODE_OF_CONDUCT.md). By participating in this project you agree to abide by its terms.
+
 ## Report bugs using GitHub's [issues](https://github.com/your-username/universal-nextjs-deploy/issues)
 
 We use GitHub issues to track public bugs. Report a bug by [opening a new issue](https://github.com/your-username/universal-nextjs-deploy/issues/new); it's that easy!
