@@ -1,0 +1,41 @@
+{
+  "app_name": "production-app",
+  "port": 3000,
+  "instances": 2,
+  "max_memory": "2G",
+  "deploy_path": "/var/www/production-app",
+  "database": {
+    "type": "postgresql",
+    "path": "/var/lib/production-app/database.db",
+    "host": "localhost",
+    "port": 5432,
+    "name": "production_app",
+    "username": "app_user",
+    "password": "secure_password"
+  },
+  "env_file": ".env.production",
+  "build_command": "npm run build",
+  "start_command": "npm start",
+  "node_version": "18",
+  "ssl": {
+    "enabled": false,
+    "cert_path": "/etc/ssl/certs/production-app.crt",
+    "key_path": "/etc/ssl/private/production-app.key"
+  },
+  "nginx": {
+    "enabled": true,
+    "domain": "production-app.example.com",
+    "ssl_enabled": false,
+    "proxy_pass": "http://localhost"
+  },
+  "health_check": {
+    "enabled": true,
+    "path": "/api/health",
+    "interval": 5
+  },
+  "backup": {
+    "enabled": true,
+    "path": "/backup/production-app",
+    "schedule": "0 2 * * *" 
+  }
+}

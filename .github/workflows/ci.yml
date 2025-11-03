@@ -1,0 +1,221 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [published]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [14.x, 16.x, 18.x]
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+    
+    - name: Install dependencies
+      run: npm install
+    
+    - name: Run syntax check
+      run: |
+        node -c cli.js
+        node -c deploy.js
+        node -c generated/ecosystem.config.js 2>/dev/null || echo "No generated files to check"
+    
+    - name: Test CLI help
+      run: node cli.js help
+      
+    - name: Run example configurations
+      run: |
+        node cli.js generate example.config.json --dry-run
+        node cli.js generate mysql-example.config.json --dry-run
+        node cli.js generate postgresql-example.config.json --dry-run
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18.x'
+        registry-url: 'https://registry.npmjs.org'
+    
+    - name: Install dependencies
+      run: npm install
+    
+    - name: Build project
+      run: |
+        # Create a test deployment to verify the build process
+        node cli.js init test-app
+        node cli.js generate test-app.config.json --dry-run
+    
+    - name: Validate generated files
+      run: |
+        if [ -f "generated/deploy.sh" ]; then
+          echo "Deployment script generated successfully"
+          # Check if the script is executable
+          if [ -x "generated/deploy.sh" ]; then
+            echo "Deployment script is executable"
+          else
+            echo "ERROR: Deployment script is not executable"
+            exit 1
+          fi
+        else
+          echo "ERROR: Deployment script not generated"
+          exit 1
+        fi
+
+  deploy-staging:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: staging
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18.x'
+    
+    - name: Install dependencies
+      run: npm install
+    
+    - name: Generate staging deployment
+      run: |
+        # Create staging configuration
+        echo '{
+          "app_name": "staging-app",
+          "port": 3001,
+          "deploy_path": "/var/www/staging-app",
+          "database": {
+            "type": "sqlite",
+            "path": "/var/lib/staging-app/database.db"
+          },
+          "nginx": {
+            "enabled": true,
+            "domain": "staging.example.com"
+          }
+        }' > staging.config.json
+        
+        # Generate deployment files
+        node cli.js generate staging.config.json --dry-run
+    
+    - name: Validate staging deployment
+      run: |
+        if [ -f "generated/deploy.sh" ]; then
+          echo "Staging deployment files generated successfully"
+        else
+          echo "ERROR: Staging deployment files not generated"
+          exit 1
+        fi
+
+  deploy-production:
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release' && github.event.action == 'published'
+    environment: production
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18.x'
+    
+    - name: Install dependencies
+      run: npm install
+    
+    - name: Generate production deployment
+      run: |
+        # Create production configuration
+        echo '{
+          "app_name": "production-app",
+          "port": 3000,
+          "instances": 2,
+          "max_memory": "2G",
+          "deploy_path": "/var/www/production-app",
+          "database": {
+            "type": "postgresql",
+            "host": "localhost",
+            "port": 5432,
+            "name": "production_db",
+            "username": "prod_user",
+            "password": "${DB_PASSWORD}"
+          },
+          "nginx": {
+            "enabled": true,
+            "domain": "production.example.com",
+            "ssl_enabled": true
+          },
+          "ssl": {
+            "enabled": true,
+            "cert_path": "/etc/ssl/certs/production-app.crt",
+            "key_path": "/etc/ssl/private/production-app.key"
+          }
+        }' > production.config.json
+        
+        # Generate deployment files
+        node cli.js generate production.config.json --dry-run
+    
+    - name: Validate production deployment
+      run: |
+        if [ -f "generated/deploy.sh" ]; then
+          echo "Production deployment files generated successfully"
+        else
+          echo "ERROR: Production deployment files not generated"
+          exit 1
+        fi
+    
+    - name: Create deployment package
+      run: |
+        mkdir -p deployment-package
+        cp -r generated/* deployment-package/
+        cp production.config.json deployment-package/
+        cp cli.js deployment-package/
+        cp deploy.js deployment-package/
+        tar -czf universal-deploy-production.tar.gz deployment-package
+    
+    - name: Upload deployment package
+      uses: actions/upload-artifact@v3
+      with:
+        name: production-deployment
+        path: universal-deploy-production.tar.gz
+
+  release:
+    needs: deploy-production
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release' && github.event.action == 'published'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18.x'
+        registry-url: 'https://registry.npmjs.org'
+    
+    - name: Publish to npm
+      run: |
+        npm publish
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

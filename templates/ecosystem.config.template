@@ -1,0 +1,16 @@
+module.exports = {
+  apps: [{
+    name: '{{APP_NAME}}',
+    script: '{{START_COMMAND}}',
+    instances: {{INSTANCES}},
+    exec_mode: 'cluster',
+    max_memory_restart: '{{MAX_MEMORY}}',
+    node_args: '--harmony',
+    env: {
+      NODE_ENV: 'production',
+      PORT: {{PORT}}
+    },
+    listen_timeout: 5000,
+    kill_timeout: 3000
+  }]
+};

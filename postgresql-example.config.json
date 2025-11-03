@@ -1,0 +1,41 @@
+{
+  "app_name": "postgres-app",
+  "port": 3000,
+  "instances": 2,
+  "max_memory": "2G",
+  "deploy_path": "/var/www/postgres-app",
+  "database": {
+    "type": "postgresql",
+    "path": "/var/lib/postgres-app/database.db",
+    "host": "localhost",
+    "port": 5432,
+    "name": "postgres_app_db",
+    "username": "postgres_user",
+    "password": "secure_postgres_password"
+  },
+  "env_file": ".env.production",
+  "build_command": "npm run build",
+  "start_command": "npm start",
+  "node_version": "18",
+  "ssl": {
+    "enabled": false,
+    "cert_path": "/etc/ssl/certs/postgres-app.crt",
+    "key_path": "/etc/ssl/private/postgres-app.key"
+  },
+  "nginx": {
+    "enabled": true,
+    "domain": "postgres-app.example.com",
+    "ssl_enabled": false,
+    "proxy_pass": "http://localhost"
+  },
+  "health_check": {
+    "enabled": true,
+    "path": "/api/health",
+    "interval": 5
+  },
+  "backup": {
+    "enabled": true,
+    "path": "/backup/postgres-app",
+    "schedule": "0 2 * * *" 
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "app_name": "minimal-app",
+  "port": 3000,
+  "deploy_path": "/var/www/minimal-app",
+  "database": {
+    "type": "sqlite",
+    "path": "/var/lib/minimal-app/database.db"
+  },
+  "nginx": {
+    "enabled": true,
+    "domain": "minimal-app.example.com"
+  }
+}

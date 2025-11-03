@@ -1,0 +1,585 @@
+#!/bin/bash
+
+# Universal Next.js Deployment Script
+# Production-ready deployment script with database support
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Logging functions
+log_info() {
+    echo -e "${GREEN}[INFO]${NC} $1"
+}
+
+log_warn() {
+    echo -e "${YELLOW}[WARN]${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+log_debug() {
+    echo -e "${BLUE}[DEBUG]${NC} $1"
+}
+
+# Configuration
+APP_NAME="{{APP_NAME}}"
+APP_PORT={{PORT}}
+DEPLOY_PATH="{{DEPLOY_PATH}}"
+DB_PATH="{{DB_PATH}}"
+DB_TYPE="{{DB_TYPE}}"
+DB_HOST="{{DB_HOST}}"
+DB_PORT={{DB_PORT}}
+DB_NAME="{{DB_NAME}}"
+DB_USERNAME="{{DB_USERNAME}}"
+DB_PASSWORD="{{DB_PASSWORD}}"
+DATABASE_URL="{{DATABASE_URL}}"
+ENV_FILE="{{ENV_FILE}}"
+BUILD_COMMAND="{{BUILD_COMMAND}}"
+START_COMMAND="{{START_COMMAND}}"
+SKIP_BUILD={{SKIP_BUILD}}
+SKIP_DEPS={{SKIP_DEPS}}
+SKIP_MIGRATIONS={{SKIP_MIGRATIONS}}
+DRY_RUN={{DRY_RUN}}
+BACKUP_ENABLED={{BACKUP_ENABLED}}
+BACKUP_PATH="{{BACKUP_PATH}}"
+BACKUP_SCHEDULE="{{BACKUP_SCHEDULE}}"
+HEALTH_CHECK_ENABLED={{HEALTH_CHECK_ENABLED}}
+HEALTH_CHECK_PATH="{{HEALTH_CHECK_PATH}}"
+HEALTH_CHECK_INTERVAL={{HEALTH_CHECK_INTERVAL}}
+NGINX_ENABLED={{NGINX_ENABLED}}
+DOMAIN="{{DOMAIN}}"
+SSL_ENABLED={{SSL_ENABLED}}
+
+# Dry run function
+dry_run() {
+    if [ "$DRY_RUN" = "true" ]; then
+        log_info "[DRY RUN] Would execute: $*"
+        return 0
+    else
+        eval "$*"
+        return $?
+    fi
+}
+
+# Check if running as root
+if [ "$EUID" -eq 0 ]; then
+    log_error "This script should not be run as root"
+    exit 1
+fi
+
+# Install required system packages
+install_system_packages() {
+    log_info "Installing required system packages..."
+    
+    if [ "$DRY_RUN" != "true" ]; then
+        # Detect OS
+        if [ -f /etc/debian_version ]; then
+            # Debian/Ubuntu
+            sudo apt-get update
+            sudo apt-get install -y curl wget gnupg ca-certificates rsync openssl
+        elif [ -f /etc/redhat-release ]; then
+            # CentOS/RHEL/Fedora
+            sudo yum install -y curl wget gnupg rsync openssl
+        elif [ -f /etc/arch-release ]; then
+            # Arch Linux
+            sudo pacman -Syu --noconfirm curl wget gnupg rsync openssl
+        else
+            log_warn "Unsupported OS distribution. Please install curl, wget, gnupg, rsync, and openssl manually."
+        fi
+    else
+        log_info "[DRY RUN] Would install system packages: curl, wget, gnupg, rsync, openssl"
+    fi
+}
+
+# Install Node.js and npm
+install_nodejs() {
+    log_info "Installing Node.js and npm..."
+    
+    if [ "$DRY_RUN" != "true" ]; then
+        # Check if Node.js is already installed
+        if ! command -v node &> /dev/null; then
+            # Install Node.js using NodeSource
+            curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+            sudo apt-get install -y nodejs
+        else
+            log_info "Node.js is already installed"
+        fi
+    else
+        log_info "[DRY RUN] Would install Node.js and npm"
+    fi
+}
+
+# Install database-specific packages
+install_database_packages() {
+    log_info "Installing database-specific packages..."
+    
+    if [ "$DRY_RUN" != "true" ]; then
+        if [ "$DB_TYPE" = "mysql" ]; then
+            # Install MySQL client
+            if [ -f /etc/debian_version ]; then
+                sudo apt-get install -y mysql-client
+            elif [ -f /etc/redhat-release ]; then
+                sudo yum install -y mysql
+            elif [ -f /etc/arch-release ]; then
+                sudo pacman -Syu --noconfirm mysql-clients
+            else
+                log_warn "Unsupported OS distribution. Please install MySQL client manually."
+            fi
+        elif [ "$DB_TYPE" = "postgresql" ]; then
+            # Install PostgreSQL client
+            if [ -f /etc/debian_version ]; then
+                sudo apt-get install -y postgresql-client
+            elif [ -f /etc/redhat-release ]; then
+                sudo yum install -y postgresql
+            elif [ -f /etc/arch-release ]; then
+                sudo pacman -Syu --noconfirm postgresql-libs
+            else
+                log_warn "Unsupported OS distribution. Please install PostgreSQL client manually."
+            fi
+        fi
+    else
+        if [ "$DB_TYPE" = "mysql" ]; then
+            log_info "[DRY RUN] Would install MySQL client"
+        elif [ "$DB_TYPE" = "postgresql" ]; then
+            log_info "[DRY RUN] Would install PostgreSQL client"
+        fi
+    fi
+}
+
+# Install PM2 globally
+install_pm2() {
+    log_info "Installing PM2 globally..."
+    
+    if [ "$DRY_RUN" != "true" ]; then
+        if ! command -v pm2 &> /dev/null; then
+            npm install -g pm2
+        else
+            log_info "PM2 is already installed"
+        fi
+    else
+        log_info "[DRY RUN] Would install PM2 globally"
+    fi
+}
+
+# Install Nginx
+install_nginx() {
+    if [ "$NGINX_ENABLED" = "true" ]; then
+        log_info "Installing Nginx..."
+        
+        if [ "$DRY_RUN" != "true" ]; then
+            if [ -f /etc/debian_version ]; then
+                sudo apt-get install -y nginx
+            elif [ -f /etc/redhat-release ]; then
+                sudo yum install -y nginx
+            elif [ -f /etc/arch-release ]; then
+                sudo pacman -Syu --noconfirm nginx
+            else
+                log_warn "Unsupported OS distribution. Please install Nginx manually."
+            fi
+            
+            # Start and enable Nginx
+            sudo systemctl start nginx
+            sudo systemctl enable nginx
+        else
+            log_info "[DRY RUN] Would install and start Nginx"
+        fi
+    fi
+}
+
+# Check if required tools are installed
+check_dependencies() {
+    log_info "Checking dependencies..."
+    
+    if ! command -v node &> /dev/null; then
+        log_error "Node.js is not installed"
+        exit 1
+    fi
+    
+    if ! command -v npm &> /dev/null; then
+        log_error "npm is not installed"
+        exit 1
+    fi
+    
+    if ! command -v pm2 &> /dev/null; then
+        log_warn "PM2 is not installed, will install..."
+        install_pm2
+    fi
+    
+    # Check database-specific tools
+    if [ "$DB_TYPE" = "mysql" ] && ! command -v mysql &> /dev/null; then
+        log_warn "MySQL client is not installed, will install..."
+        install_database_packages
+    elif [ "$DB_TYPE" = "postgresql" ] && ! command -v psql &> /dev/null; then
+        log_warn "PostgreSQL client is not installed, will install..."
+        install_database_packages
+    fi
+    
+    log_info "All dependencies are satisfied"
+}
+
+# Create necessary directories
+create_directories() {
+    log_info "Creating necessary directories..."
+    
+    if [ "$DRY_RUN" != "true" ]; then
+        # Create app directory
+        sudo mkdir -p $DEPLOY_PATH
+        sudo chown $USER:$USER $DEPLOY_PATH
+        
+        # Create database directory for SQLite
+        if [ "$DB_TYPE" = "sqlite" ]; then
+            sudo mkdir -p $(dirname $DB_PATH)
+            sudo chown $USER:$USER $(dirname $DB_PATH)
+        fi
+        
+        # Create logs directory
+        mkdir -p $DEPLOY_PATH/logs
+        
+        # Create backup directory if enabled
+        if [ "$BACKUP_ENABLED" = "true" ]; then
+            sudo mkdir -p $BACKUP_PATH
+            sudo chown $USER:$USER $BACKUP_PATH
+        fi
+    else
+        log_info "[DRY RUN] Would create directories: $DEPLOY_PATH, $DEPLOY_PATH/logs"
+        if [ "$DB_TYPE" = "sqlite" ]; then
+            log_info "[DRY RUN] Would create SQLite database directory: $(dirname $DB_PATH)"
+        fi
+        if [ "$BACKUP_ENABLED" = "true" ]; then
+            log_info "[DRY RUN] Would create backup directory: $BACKUP_PATH"
+        fi
+    fi
+}
+
+# Setup database (for MySQL and PostgreSQL)
+setup_database() {
+    if [ "$DB_TYPE" = "mysql" ]; then
+        log_info "Setting up MySQL database..."
+        if [ "$DRY_RUN" != "true" ]; then
+            # Create database and user
+            mysql -h $DB_HOST -P $DB_PORT -u root -p << EOF
+CREATE DATABASE IF NOT EXISTS $DB_NAME;
+CREATE USER IF NOT EXISTS '$DB_USERNAME'@'%' IDENTIFIED BY '$DB_PASSWORD';
+GRANT ALL PRIVILEGES ON $DB_NAME.* TO '$DB_USERNAME'@'%';
+FLUSH PRIVILEGES;
+EOF
+        else
+            log_info "[DRY RUN] Would create MySQL database and user"
+        fi
+    elif [ "$DB_TYPE" = "postgresql" ]; then
+        log_info "Setting up PostgreSQL database..."
+        if [ "$DRY_RUN" != "true" ]; then
+            # Create database and user
+            sudo -u postgres psql << EOF
+CREATE DATABASE $DB_NAME;
+CREATE USER $DB_USERNAME WITH ENCRYPTED PASSWORD '$DB_PASSWORD';
+GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USERNAME;
+EOF
+        else
+            log_info "[DRY RUN] Would create PostgreSQL database and user"
+        fi
+    elif [ "$DB_TYPE" = "sqlite" ]; then
+        log_info "SQLite database will be created automatically by the application"
+    else
+        log_info "Using $DB_TYPE database - make sure it's properly configured"
+    fi
+}
+
+# Setup backup cron job if enabled
+setup_backup() {
+    if [ "$BACKUP_ENABLED" = "true" ]; then
+        log_info "Setting up backup cron job..."
+        
+        if [ "$DRY_RUN" != "true" ]; then
+            # Create backup script
+            cat > $DEPLOY_PATH/backup.sh << 'EOF'
+#!/bin/bash
+# Backup script for {{APP_NAME}}
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+BACKUP_NAME="{{APP_NAME}}_$TIMESTAMP"
+
+# Backup application files
+tar -czf {{BACKUP_PATH}}/$BACKUP_NAME-app.tar.gz -C {{DEPLOY_PATH}} . --exclude=node_modules --exclude=.git
+
+# Backup database
+if [ "{{DB_TYPE}}" = "sqlite" ]; then
+    # For SQLite, backup the database file
+    if [ -f "{{DB_PATH}}" ]; then
+        cp {{DB_PATH}} {{BACKUP_PATH}}/$BACKUP_NAME-db.sqlite
+    fi
+elif [ "{{DB_TYPE}}" = "mysql" ]; then
+    # For MySQL, use mysqldump
+    mysqldump -h {{DB_HOST}} -P {{DB_PORT}} -u {{DB_USERNAME}} -p{{DB_PASSWORD}} {{DB_NAME}} > {{BACKUP_PATH}}/$BACKUP_NAME-db.sql
+elif [ "{{DB_TYPE}}" = "postgresql" ]; then
+    # For PostgreSQL, use pg_dump
+    pg_dump -h {{DB_HOST}} -p {{DB_PORT}} -U {{DB_USERNAME}} {{DB_NAME}} > {{BACKUP_PATH}}/$BACKUP_NAME-db.sql
+fi
+
+# Clean up old backups (keep last 7 days)
+find {{BACKUP_PATH}} -name "{{APP_NAME}}_*.tar.gz" -mtime +7 -delete
+find {{BACKUP_PATH}} -name "{{APP_NAME}}_*-db.*" -mtime +7 -delete
+EOF
+            
+            chmod +x $DEPLOY_PATH/backup.sh
+            
+            # Add cron job
+            (crontab -l 2>/dev/null; echo "{{BACKUP_SCHEDULE}} {{DEPLOY_PATH}}/backup.sh") | crontab -
+        else
+            log_info "[DRY RUN] Would create backup script and cron job"
+        fi
+    fi
+}
+
+# Deploy application
+deploy_app() {
+    log_info "Deploying application..."
+    
+    if [ "$DRY_RUN" != "true" ]; then
+        # Copy files to deployment directory
+        rsync -av --exclude node_modules --exclude .git . $DEPLOY_PATH/
+    else
+        log_info "[DRY RUN] Would copy application files to $DEPLOY_PATH"
+    fi
+    
+    # Change to app directory
+    cd $DEPLOY_PATH
+    
+    # Install dependencies
+    if [ "$SKIP_DEPS" = "false" ]; then
+        log_info "Installing dependencies..."
+        dry_run "npm ci --only=production"
+    else
+        log_info "Skipping dependency installation"
+    fi
+    
+    # Create .env file if it doesn't exist
+    if [ ! -f .env ] && [ "$DRY_RUN" != "true" ]; then
+        log_warn "Creating default .env file..."
+        cat > .env << EOF
+# Database configuration
+DATABASE_URL="$DATABASE_URL"
+
+# Authentication secret - CHANGE THIS IN PRODUCTION
+AUTH_SECRET="$(openssl rand -base64 32)"
+
+# Next.js configuration
+NEXT_PUBLIC_BASE_URL="http://$DOMAIN:$APP_PORT"
+NODE_ENV="production"
+PORT=$APP_PORT
+
+# Application configuration
+APP_NAME="{{APP_NAME}}"
+
+# Database specific configuration
+DB_TYPE="{{DB_TYPE}}"
+DB_HOST="{{DB_HOST}}"
+DB_PORT={{DB_PORT}}
+DB_NAME="{{DB_NAME}}"
+DB_USERNAME="{{DB_USERNAME}}"
+DB_PASSWORD="{{DB_PASSWORD}}"
+EOF
+        log_warn "Please update the .env file with your production values"
+    elif [ "$DRY_RUN" != "true" ]; then
+        # Copy specified env file if provided
+        if [ -n "$ENV_FILE" ] && [ -f "$ENV_FILE" ]; then
+            log_info "Copying environment file: $ENV_FILE"
+            cp $ENV_FILE .env
+        fi
+    else
+        log_info "[DRY RUN] Would handle environment file"
+    fi
+    
+    # Run database migrations if Prisma is used and not skipped
+    if [ -d "prisma" ] && [ "$SKIP_MIGRATIONS" = "false" ]; then
+        log_info "Running database migrations..."
+        dry_run "npx prisma migrate deploy"
+    elif [ "$SKIP_MIGRATIONS" = "true" ]; then
+        log_info "Skipping database migrations"
+    fi
+    
+    # Build the application
+    if [ "$SKIP_BUILD" = "false" ]; then
+        log_info "Building the application..."
+        dry_run "$BUILD_COMMAND"
+    else
+        log_info "Skipping application build"
+    fi
+}
+
+# Start application with PM2
+start_app() {
+    log_info "Starting application with PM2..."
+    
+    cd $DEPLOY_PATH
+    
+    if [ "$DRY_RUN" != "true" ]; then
+        # Check if app is already running
+        if pm2 list | grep -q "$APP_NAME"; then
+            log_info "Restarting existing application..."
+            pm2 restart $APP_NAME
+        else
+            log_info "Starting new application..."
+            pm2 start ecosystem.config.js
+        fi
+        
+        # Save PM2 configuration
+        pm2 save
+    else
+        log_info "[DRY RUN] Would start/restart application with PM2"
+    fi
+}
+
+# Setup health check
+setup_health_check() {
+    if [ "$HEALTH_CHECK_ENABLED" = "true" ]; then
+        log_info "Setting up health check..."
+        
+        if [ "$DRY_RUN" != "true" ]; then
+            # Create health check script
+            cat > $DEPLOY_PATH/health-check.sh << EOF
+#!/bin/bash
+# Health check script for {{APP_NAME}}
+HEALTH_CHECK_URL="http://localhost:$APP_PORT$HEALTH_CHECK_PATH"
+RESPONSE=\$(curl -s -o /dev/null -w "%{http_code}" \$HEALTH_CHECK_URL)
+
+if [ "\$RESPONSE" -eq 200 ]; then
+    echo "[\$(date)] Health check OK: \$RESPONSE"
+else
+    echo "[\$(date)] Health check FAILED: \$RESPONSE"
+    # Restart the application
+    pm2 restart $APP_NAME
+fi
+EOF
+            
+            chmod +x $DEPLOY_PATH/health-check.sh
+            
+            # Add cron job for health check
+            (crontab -l 2>/dev/null; echo "*/$HEALTH_CHECK_INTERVAL * * * * $DEPLOY_PATH/health-check.sh >> $DEPLOY_PATH/logs/health-check.log 2>&1") | crontab -
+        else
+            log_info "[DRY RUN] Would create health check script and cron job"
+        fi
+    fi
+}
+
+# Setup Nginx (optional)
+setup_nginx() {
+    if [ "$NGINX_ENABLED" = "true" ]; then
+        log_info "Setting up Nginx configuration..."
+        
+        # Check if Nginx is installed
+        if ! command -v nginx &> /dev/null; then
+            log_warn "Nginx is not installed, installing..."
+            install_nginx
+        fi
+        
+        if [ "$DRY_RUN" != "true" ]; then
+            # Create Nginx config
+            sudo tee /etc/nginx/sites-available/$APP_NAME > /dev/null << 'EOF'
+{{NGINX_CONFIG}}
+EOF
+            
+            # Enable site
+            sudo ln -sf /etc/nginx/sites-available/$APP_NAME /etc/nginx/sites-enabled/
+            
+            # Test configuration
+            if sudo nginx -t; then
+                sudo systemctl reload nginx
+                log_info "Nginx configuration updated successfully"
+            else
+                log_error "Nginx configuration test failed"
+            fi
+        else
+            log_info "[DRY RUN] Would configure Nginx"
+        fi
+    fi
+}
+
+# Show deployment information
+show_deployment_info() {
+    log_info "Deployment completed successfully!"
+    echo
+    log_info "Application Information:"
+    log_info "  Application Name: $APP_NAME"
+    log_info "  Deploy Path: $DEPLOY_PATH"
+    log_info "  Port: $APP_PORT"
+    log_info "  Database Type: $DB_TYPE"
+    
+    if [ "$NGINX_ENABLED" = "true" ]; then
+        log_info "  Access URL: http://$DOMAIN"
+        if [ "$SSL_ENABLED" = "true" ]; then
+            log_info "  Secure Access URL: https://$DOMAIN"
+        fi
+    else
+        log_info "  Access URL: http://$(hostname -I | awk '{print $1}'):$APP_PORT"
+    fi
+    
+    log_info "  PM2 Process: pm2 list | grep $APP_NAME"
+    log_info "  Application Logs: pm2 logs $APP_NAME"
+    
+    if [ "$BACKUP_ENABLED" = "true" ]; then
+        log_info "  Backup Schedule: $BACKUP_SCHEDULE"
+        log_info "  Backup Path: $BACKUP_PATH"
+    fi
+    
+    if [ "$HEALTH_CHECK_ENABLED" = "true" ]; then
+        log_info "  Health Check Interval: $HEALTH_CHECK_INTERVAL minutes"
+        log_info "  Health Check Path: $HEALTH_CHECK_PATH"
+    fi
+    
+    log_info ""
+    log_info "Environment Variables:"
+    log_info "  DATABASE_URL=$DATABASE_URL"
+    log_info "  NODE_ENV=production"
+    log_info "  PORT=$APP_PORT"
+    log_info ""
+    log_info "For production use, make sure to:"
+    log_info "  1. Update the .env file with production values"
+    log_info "  2. Configure your domain DNS settings"
+    log_info "  3. Set up SSL certificates if needed"
+    log_info "  4. Review firewall and security settings"
+    log_info "  5. Verify database connection settings"
+}
+
+# Main deployment process
+main() {
+    log_info "Starting $APP_NAME deployment..."
+    
+    install_system_packages
+    install_nodejs
+    install_database_packages
+    install_pm2
+    install_nginx
+    
+    check_dependencies
+    create_directories
+    setup_database
+    setup_backup
+    deploy_app
+    start_app
+    setup_health_check
+    setup_nginx
+    show_deployment_info
+}
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --dry-run)
+            DRY_RUN="true"
+            shift
+            ;;
+        *)
+            log_error "Unknown option: $1"
+            exit 1
+            ;;
+    esac
+done
+
+# Run main function
+main "$@"

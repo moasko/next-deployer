@@ -1,0 +1,41 @@
+{
+  "app_name": "mysql-app",
+  "port": 3000,
+  "instances": 2,
+  "max_memory": "2G",
+  "deploy_path": "/var/www/mysql-app",
+  "database": {
+    "type": "mysql",
+    "path": "/var/lib/mysql-app/database.db",
+    "host": "localhost",
+    "port": 3306,
+    "name": "mysql_app_db",
+    "username": "mysql_user",
+    "password": "secure_mysql_password"
+  },
+  "env_file": ".env.production",
+  "build_command": "npm run build",
+  "start_command": "npm start",
+  "node_version": "18",
+  "ssl": {
+    "enabled": false,
+    "cert_path": "/etc/ssl/certs/mysql-app.crt",
+    "key_path": "/etc/ssl/private/mysql-app.key"
+  },
+  "nginx": {
+    "enabled": true,
+    "domain": "mysql-app.example.com",
+    "ssl_enabled": false,
+    "proxy_pass": "http://localhost"
+  },
+  "health_check": {
+    "enabled": true,
+    "path": "/api/health",
+    "interval": 5
+  },
+  "backup": {
+    "enabled": true,
+    "path": "/backup/mysql-app",
+    "schedule": "0 2 * * *" 
+  }
+}

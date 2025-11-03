@@ -1,0 +1,51 @@
+{
+  "name": "universal-nextjs-deploy",
+  "version": "1.2.0",
+  "description": "Universal deployment system for Next.js applications with CI/CD support",
+  "main": "deploy.js",
+  "scripts": {
+    "deploy": "node deploy.js",
+    "generate": "node deploy.js",
+    "cli": "node cli.js",
+    "init": "node cli.js init",
+    "setup": "node cli.js setup",
+    "ci-status": "node cli.js ci-status",
+    "ci-validate": "node cli.js ci-validate",
+    "test": "node test/ci-cd.test.js",
+    "test:all": "npm run test && node cli.js generate example.config.json --dry-run && node cli.js generate mysql-example.config.json --dry-run && node cli.js generate postgresql-example.config.json --dry-run",
+    "docker:build": "docker build -t universal-deploy .",
+    "docker:run": "docker run --rm -it universal-deploy",
+    "docs": "echo 'See DOCUMENTATION.md for complete documentation'",
+    "quickstart": "echo 'See QUICKSTART.md for quick start guide'"
+  },
+  "bin": {
+    "nextjs-deploy": "./deploy.js",
+    "nextjs-cli": "./cli.js"
+  },
+  "keywords": [
+    "nextjs",
+    "deployment",
+    "vps",
+    "pm2",
+    "nginx",
+    "ssl",
+    "backup",
+    "health-check",
+    "database",
+    "ci-cd",
+    "docker",
+    "automation"
+  ],
+  "author": "BizManager Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/universal-nextjs-deploy.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/universal-nextjs-deploy/issues"
+  },
+  "homepage": "https://github.com/your-username/universal-nextjs-deploy#readme",
+  "dependencies": {},
+  "devDependencies": {}
+}

@@ -1,0 +1,41 @@
+{
+  "app_name": "full-example-app",
+  "port": 3000,
+  "instances": 2,
+  "max_memory": "2G",
+  "deploy_path": "/var/www/full-example-app",
+  "database": {
+    "type": "postgresql",
+    "path": "/var/lib/full-example-app/database.db",
+    "host": "localhost",
+    "port": 5432,
+    "name": "full_example_db",
+    "username": "db_user",
+    "password": "secure_password"
+  },
+  "env_file": ".env.production",
+  "build_command": "npm run build",
+  "start_command": "npm start",
+  "node_version": "18",
+  "ssl": {
+    "enabled": true,
+    "cert_path": "/etc/ssl/certs/full-example-app.crt",
+    "key_path": "/etc/ssl/private/full-example-app.key"
+  },
+  "nginx": {
+    "enabled": true,
+    "domain": "full-example-app.example.com",
+    "ssl_enabled": true,
+    "proxy_pass": "http://localhost"
+  },
+  "health_check": {
+    "enabled": true,
+    "path": "/api/health",
+    "interval": 5
+  },
+  "backup": {
+    "enabled": true,
+    "path": "/backup/full-example-app",
+    "schedule": "0 2 * * *"
+  }
+}

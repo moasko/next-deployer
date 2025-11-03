@@ -1,0 +1,36 @@
+{
+  "app_name": "ci-cd-deployer",
+  "port": 3000,
+  "instances": 1,
+  "max_memory": "1G",
+  "deploy_path": "/var/www/ci-cd-deployer",
+  "database": {
+    "type": "sqlite",
+    "path": "/var/lib/ci-cd-deployer/database.db"
+  },
+  "env_file": ".env.ci",
+  "build_command": "npm run build",
+  "start_command": "npm start",
+  "node_version": "18",
+  "ssl": {
+    "enabled": false,
+    "cert_path": "",
+    "key_path": ""
+  },
+  "nginx": {
+    "enabled": true,
+    "domain": "deployer.ci-cd.local",
+    "ssl_enabled": false,
+    "proxy_pass": "http://localhost"
+  },
+  "health_check": {
+    "enabled": true,
+    "path": "/api/health",
+    "interval": 5
+  },
+  "backup": {
+    "enabled": false,
+    "path": "",
+    "schedule": ""
+  }
+}
