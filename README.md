@@ -5,6 +5,10 @@
 
 A comprehensive deployment solution for Next.js applications that automatically configures your VPS with all necessary tools and services.
 
+## About
+
+This repository contains a powerful deployment automation system for Next.js applications. It simplifies the process of deploying production-ready Next.js apps to any VPS by automatically installing and configuring all required components including Node.js, PM2, Nginx, and database clients. The system supports multiple databases (SQLite, MySQL, PostgreSQL), SSL/HTTPS, automated backups, health checks, and comes with full CI/CD pipeline support.
+
 ## Features
 
 - **Automatic Tool Installation**: Installs Node.js, PM2, Nginx, and database clients
