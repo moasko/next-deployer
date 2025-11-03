@@ -16,7 +16,8 @@
     "docker:build": "docker build -t universal-deploy .",
     "docker:run": "docker run --rm -it universal-deploy",
     "docs": "echo 'See DOCUMENTATION.md for complete documentation'",
-    "quickstart": "echo 'See QUICKSTART.md for quick start guide'"
+    "quickstart": "echo 'See QUICKSTART.md for quick start guide'",
+    "scenario": "echo 'See SCENARIO.md for deployment scenario'"
   },
   "bin": {
     "nextjs-deploy": "./deploy.js",
@@ -35,7 +36,8 @@
     "ci-cd",
     "docker",
     "automation",
-    "code-of-conduct"
+    "code-of-conduct",
+    "scenario"
   ],
   "author": "BizManager Team",
   "license": "MIT",
