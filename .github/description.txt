@@ -1,0 +1,1 @@
+Universal Next.js Deployment System - Automate deployment of Next.js applications to any VPS with automatic installation of Node.js, PM2, Nginx, and database clients. Supports SQLite, MySQL, PostgreSQL with CI/CD pipelines.
