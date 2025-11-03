@@ -62,6 +62,10 @@ This repository contains a powerful deployment automation system for Next.js app
    ./deploy.sh
    ```
 
+## Example Scenario
+
+See [SCENARIO.md](SCENARIO.md) for a complete deployment scenario of an existing Next.js e-commerce application with PostgreSQL database, SSL, and all production features.
+
 ## Configuration Examples
 
 ### Minimal Configuration (SQLite)
@@ -186,6 +190,7 @@ The Makefile includes CI/CD specific targets:
 For complete documentation, see:
 - [DOCUMENTATION.md](DOCUMENTATION.md) - Complete documentation
 - [QUICKSTART.md](QUICKSTART.md) - Quick start guide
+- [SCENARIO.md](SCENARIO.md) - Complete deployment scenario for existing Next.js projects
 - Example configuration files:
   - [MINIMAL_EXAMPLE.config.json](MINIMAL_EXAMPLE.config.json)
   - [FULL_EXAMPLE.config.json](FULL_EXAMPLE.config.json)
