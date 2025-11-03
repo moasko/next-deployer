@@ -28,9 +28,10 @@
    - [Docker Support](#docker-support)
    - [CI/CD CLI Commands](#ci-cd-cli-commands)
    - [Configuration Validation](#configuration-validation)
-10. [Security Considerations](#security-considerations)
-11. [Troubleshooting](#troubleshooting)
-12. [Examples](#examples)
+10. [Deployment Scenario](#deployment-scenario)
+11. [Security Considerations](#security-considerations)
+12. [Troubleshooting](#troubleshooting)
+13. [Examples](#examples)
 
 ## Overview
 
@@ -394,6 +395,16 @@ The CI/CD validation system checks:
 2. **Database Configuration**: Validates database connection settings
 3. **Security Practices**: Warns about sensitive data handling
 4. **Environment Variables**: Checks for proper use of environment variables
+
+## Deployment Scenario
+
+For a complete example of deploying an existing Next.js project, see [SCENARIO.md](SCENARIO.md) which demonstrates:
+- Deploying a real-world e-commerce application
+- Configuring PostgreSQL database
+- Setting up SSL/HTTPS
+- Implementing health checks and backups
+- Post-deployment maintenance operations
+- Troubleshooting common issues
 
 ## Security Considerations
 
