@@ -191,6 +191,10 @@ For complete documentation, see:
 
 ## Contributing
 
+We welcome contributions to the Universal Next.js Deployment System! Please see our [Contributing Guidelines](CONTRIBUTING.md) for more information.
+
+By participating in this project, you agree to abide by our [Code of Conduct](CODE_OF_CONDUCT.md).
+
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
 3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
