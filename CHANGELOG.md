@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive test suite for CI/CD functionality
 - CI/CD demo scripts
 - CODE_OF_CONDUCT.md for community guidelines
+- SCENARIO.md with complete deployment scenario for existing Next.js projects
 
 ### Enhanced
 - Improved CLI with setup wizard
