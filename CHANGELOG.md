@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Makefile with CI/CD targets
 - Comprehensive test suite for CI/CD functionality
 - CI/CD demo scripts
+- CODE_OF_CONDUCT.md for community guidelines
 
 ### Enhanced
 - Improved CLI with setup wizard
