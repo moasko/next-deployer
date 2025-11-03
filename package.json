@@ -34,7 +34,8 @@
     "database",
     "ci-cd",
     "docker",
-    "automation"
+    "automation",
+    "code-of-conduct"
   ],
   "author": "BizManager Team",
   "license": "MIT",
